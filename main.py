@@ -3,9 +3,11 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import google.generativeai as genai
 import json
+import os
 
 app = FastAPI()
 
+# --- 1. CORS SETTINGS (Netlify connection ke liye zaroori) ---
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,7 +16,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- AI CONFIGURATION ---
+# --- 2. AI CONFIGURATION ---
+# Note: LinkedIn par share karne se pehle API Key ko "Environment Variable" mein daalna safe hota hai
 GEMINI_API_KEY = "AIzaSyBUbvuovM01d_XqNOo3PJEyrHvd81KS6hI"
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -33,7 +36,6 @@ async def process_resume(data: ResumeData):
     try:
         model = genai.GenerativeModel('gemini-1.5-flash')
         
-        # PROMPT UPDATED: For 5-6 lines summary and detailed sections
         prompt = f"""
         You are a Senior Resume Writer. Create highly detailed resume content for:
         Name: {data.name}
@@ -42,19 +44,14 @@ async def process_resume(data: ResumeData):
 
         Instructions for a Realistic Resume:
         1. PROFESSIONAL SUMMARY: Write a long, sophisticated summary (minimum 5-6 lines). Focus on career goals, technical passion, and how the user solves problems using {data.skills}.
-        2. EXPERIENCE/ROLES: Provide 4 detailed points. Each point should be 2-3 lines long, explaining a specific task and its positive result (e.g., "Used {data.skills} to optimize performance by 30%...").
-        3. EDUCATION/LEVEL CONTEXT: Add a small 2-line commentary based on the user's career stage (Fresher or Experienced).
+        2. EXPERIENCE/ROLES: Provide 4 detailed points. Each point should be 2-3 lines long, explaining a specific task and its positive result.
+        3. EDUCATION/LEVEL CONTEXT: Add a small 2-line commentary based on the user's career stage.
 
         Return ONLY a JSON object:
         {{
-            "summary": "Detailed 6-line summary text...",
-            "responsibilities": [
-                "Detailed 3-line point about technical execution...",
-                "Detailed 3-line point about team collaboration...",
-                "Detailed 3-line point about problem solving...",
-                "Detailed 3-line point about learning and growth..."
-            ],
-            "education_note": "A realistic line about academic background and skill application."
+            "summary": "...",
+            "responsibilities": ["...", "...", "...", "..."],
+            "education_note": "..."
         }}
         """
         
@@ -71,25 +68,24 @@ async def process_resume(data: ResumeData):
 
     except Exception as e:
         print(f"Error: {str(e)}")
-        # Realistic Fallback in case of error
+        # Fallback Content
         return {
             "status": "success",
             "ai_content": {
-                "summary": f"Results-driven professional with a deep interest in {data.title}. Possessing a strong foundation in {data.skills}, I am committed to delivering high-quality solutions and continuous learning. My approach combines technical expertise with a problem-solving mindset to drive innovation and efficiency. I aim to contribute effectively to team goals while staying updated with the latest industry trends and best practices to ensure top-notch project delivery.",
+                "summary": f"Results-driven professional with a deep interest in {data.title}. Possessing a strong foundation in {data.skills}...",
                 "responsibilities": [
-                    f"Actively developed and maintained core features using {data.skills} to ensure seamless user experience and system reliability across all platforms.",
-                    "Collaborated with cross-functional teams to identify bottlenecks and implement optimized workflows, resulting in improved project delivery timelines.",
-                    "Leveraged analytical skills to debug complex issues and provide robust fixes, maintaining a high standard of code quality and performance.",
-                    "Participated in continuous training and knowledge sharing sessions to stay ahead of emerging technologies and integrate them into current projects."
+                    f"Actively developed features using {data.skills}...",
+                    "Collaborated with cross-functional teams...",
+                    "Leveraged analytical skills to debug issues...",
+                    "Participated in continuous training..."
                 ],
-                "education_note": "Focused academic background with a specialization in technologies that align with current industry demands."
+                "education_note": "Focused academic background with specialization in industry-aligned technologies."
             }
         }
 
+# --- 3. RENDER DEPLOYMENT SETTINGS (Ye niche hona chahiye) ---
 if __name__ == "__main__":
     import uvicorn
-    import os
-    # Port ko environment variable se uthayega, warna default 8000 lega
+    # Render PORT variable provide karta hai, agar na mile toh 8000 use karega
     port = int(os.environ.get("PORT", 8000))
-    # Host 0.0.0.0 ka matlab hai ki ye internet par accessible hoga
     uvicorn.run(app, host="0.0.0.0", port=port)
